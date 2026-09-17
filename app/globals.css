@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url('https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0F5A35;
+  --color-primary-dark: #0B3D26;
+  --color-primary-hover: #2E7D32;
+  --color-accent: #4CAF50;
+  --color-accent-hover: #2E7D32;
+  --color-light-green: #EAF7EC;
+  --color-gold: #D4A017;
+  --color-success: #16A34A;
+  --color-danger: #DC2626;
+  --color-bg-custom: #F8FAF8;
+  --color-card-custom: #FFFFFF;
+  --color-text-dark: #1A1A1A;
+  --color-text-secondary: #64748B;
+  --color-border-custom: #DCE7DD;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --primary-green: #0F5A35;
+  --dark-green: #0B3D26;
+  --accent-green: #4CAF50;
+  --hover-green: #2E7D32;
+  --light-green: #EAF7EC;
+  --gold-accent: #D4A017;
+  --bg-color: #F8FAF8;
+  --card-bg: #FFFFFF;
+  --primary-text: #1A1A1A;
+  --secondary-text: #64748B;
+  --border-color: #DCE7DD;
+  --success-color: #16A34A;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-color);
+  background-image: linear-gradient(180deg, #FFFFFF 0%, #F7FBF6 50%, #EEF8F0 100%);
+  color: var(--primary-text);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Glassmorphism Navbar */
+.glass-header {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(220, 231, 221, 0.6);
+  box-shadow: 0 4px 20px -2px rgba(15, 90, 53, 0.05);
+}
+
+/* Subtle Geometric / Leaf pattern background */
+.bg-leaf-pattern {
+  background-image: radial-gradient(rgba(15, 90, 53, 0.05) 1px, transparent 1px), radial-gradient(rgba(76, 175, 80, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: 0 0, 16px 16px;
+}
+
+/* Shine Sweep Overlay Effect for Fleet Images */
+.shine-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-container::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(30deg);
+  transition: opacity 0.3s;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.shine-container:hover::after {
+  animation: shineSweep 0.85s ease-in-out forwards;
+  opacity: 1;
+}
+
+@keyframes shineSweep {
+  0% {
+    left: -60%;
+  }
+  100% {
+    left: 140%;
+  }
+}
+
+/* Custom Floating Label Inputs */
+.floating-input-group {
+  position: relative;
+}
+
+.floating-input-group input,
+.floating-input-group textarea {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1.5px solid #DCE7DD;
+  border-radius: 0.85rem;
+  padding: 1.1rem 1rem 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #1A1A1A;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 5px rgba(15, 90, 53, 0.02);
+}
+
+.floating-input-group input:focus,
+.floating-input-group textarea:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.15), 0 4px 12px rgba(15, 90, 53, 0.08);
+}
+
+.floating-input-group label {
+  position: absolute;
+  left: 1rem;
+  top: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748B;
+  pointer-events: none;
+  transition: all 0.25s ease-out;
+  transform-origin: left top;
+}
+
+.floating-input-group input:focus ~ label,
+.floating-input-group input:not(:placeholder-shown) ~ label,
+.floating-input-group textarea:focus ~ label,
+.floating-input-group textarea:not(:placeholder-shown) ~ label {
+  transform: translateY(-0.6rem) scale(0.78);
+  color: #0F5A35;
+  font-weight: 700;
+}
+
+/* Premium Gradient Button */
+.btn-green-gradient {
+  background: linear-gradient(135deg, #0F5A35 0%, #2E7D32 50%, #4CAF50 100%);
+  background-size: 200% 200%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 20px -4px rgba(15, 90, 53, 0.35);
+}
+
+.btn-green-gradient:hover {
+  background-position: 100% 0;
+  box-shadow: 0 10px 28px -4px rgba(76, 175, 80, 0.45);
+}
+
+/* Custom Cursor Hide Default when active */
+@media (min-width: 768px) {
+  body.custom-cursor-active {
+    cursor: none;
+  }
+  body.custom-cursor-active a,
+  body.custom-cursor-active button,
+  body.custom-cursor-active input,
+  body.custom-cursor-active textarea {
+    cursor: none;
+  }
+}
