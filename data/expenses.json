@@ -1,8 +1,8 @@
 [
   {
     "id": "1789895593002",
-    "billNumber": "sdvsdv",
-    "expenseName": "cvsdv",
+    "billNumber": "999",
+    "expenseName": "pujan",
     "amount": 2500,
     "date": "2026-09-20",
     "carId": "car-1789658461079",
@@ -10,7 +10,7 @@
   },
   {
     "id": "1789895525048",
-    "billNumber": "bhandra",
+    "billNumber": "1010",
     "expenseName": "salary",
     "amount": 15000,
     "date": "2026-09-01",

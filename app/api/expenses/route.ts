@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const expenses = readExpenses();
 
     const newExpense = {
-      id: Date.now().toString(),
+      id: String(Date.now()),
       billNumber: body.billNumber || '',
       expenseName: body.expenseName,
       amount: Number(body.amount),
@@ -44,20 +44,20 @@ export async function POST(req: Request) {
     expenses.push(newExpense);
     writeExpenses(expenses);
 
-    return NextResponse.json({ success: true, expense: newExpense });
+    return NextResponse.json({ success: true, expense: newExpense, expenses });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to create expense' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create' }, { status: 500 });
   }
 }
 
-// 🟢 Edit Expense
+// 🟢 PUT (Update - String conversion fix)
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
     let expenses = readExpenses();
 
     expenses = expenses.map((item: any) =>
-      item.id === body.id
+      String(item.id) === String(body.id)
         ? {
             ...item,
             billNumber: body.billNumber || '',
@@ -70,28 +70,26 @@ export async function PUT(req: Request) {
     );
 
     writeExpenses(expenses);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, expenses });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to update expense' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
   }
 }
 
-// 🟢 Delete Expense
+// 🟢 DELETE (String conversion fix)
 export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
-    if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
-    }
+    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     let expenses = readExpenses();
-    expenses = expenses.filter((item: any) => item.id !== id);
-    writeExpenses(expenses);
+    expenses = expenses.filter((item: any) => String(item.id) !== String(id));
 
-    return NextResponse.json({ success: true });
+    writeExpenses(expenses);
+    return NextResponse.json({ success: true, expenses });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete expense' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
   }
 }
