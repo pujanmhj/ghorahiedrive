@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { FleetCar, SessionUser } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, Receipt, Calendar, AlertCircle, CalendarDays, CalendarRange, X, Car } from 'lucide-react';
+import { Plus, Receipt, Calendar, AlertCircle, CalendarDays, CalendarRange, X, Car, Pencil, Trash2 } from 'lucide-react';
 
 interface ExpenseRecord {
   id: string;
@@ -28,8 +28,8 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
     new Date().toISOString().slice(0, 10)
   );
   
-  // 🟢 Car summary modal state
   const [selectedCarForSummary, setSelectedCarForSummary] = useState<FleetCar | null>(null);
+  const [editingExpense, setEditingExpense] = useState<ExpenseRecord | null>(null);
   const [fetching, setFetching] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -39,6 +39,16 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
     date: new Date().toISOString().slice(0, 10),
     carId: cars[0]?.id || '',
   });
+
+  const [editFormData, setEditFormData] = useState({
+    id: '',
+    billNumber: '',
+    expenseName: '',
+    amount: '',
+    date: '',
+    carId: '',
+  });
+
   const [loading, setLoading] = useState(false);
 
   const fetchExpenses = useCallback(async () => {
@@ -89,7 +99,60 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
     }
   };
 
-  // General Dashboard Calculations
+  // 🟢 Edit handler
+  const handleEditOpen = (item: ExpenseRecord) => {
+    setEditingExpense(item);
+    setEditFormData({
+      id: item.id,
+      billNumber: item.billNumber,
+      expenseName: item.expenseName,
+      amount: String(item.amount),
+      date: item.date,
+      carId: item.carId,
+    });
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData),
+      });
+
+      if (res.ok) {
+        setEditingExpense(null);
+        await fetchExpenses();
+        if (onChanged) onChanged();
+      }
+    } catch (err) {
+      console.error('Failed to update expense', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🟢 Delete handler
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this expense record?')) return;
+
+    try {
+      const res = await fetch(`/api/expenses?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        await fetchExpenses();
+        if (onChanged) onChanged();
+      }
+    } catch (err) {
+      console.error('Failed to delete expense', err);
+    }
+  };
+
+  // Calculations
   const dailyTotal = useMemo(() => {
     return expenses
       .filter((item) => item.date === selectedDate)
@@ -120,18 +183,15 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
     return expenses.filter((item) => item.date.startsWith(selectedMonth));
   }, [expenses, selectedMonth]);
 
-  // 🟢 Specific Car Summary Calculations (Daily, Weekly, Monthly, Yearly, Total)
   const carSummaryData = useMemo(() => {
     if (!selectedCarForSummary) return null;
 
     const carExpenses = expenses.filter(e => e.carId === selectedCarForSummary.id);
 
-    // Daily
     const daily = carExpenses
       .filter(e => e.date === selectedDate)
       .reduce((s, e) => s + e.amount, 0);
 
-    // Weekly (7 days)
     const targetDate = new Date(selectedDate);
     const startOfWeek = new Date(targetDate);
     startOfWeek.setDate(targetDate.getDate() - 6);
@@ -142,18 +202,15 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
       })
       .reduce((s, e) => s + e.amount, 0);
 
-    // Monthly
     const monthly = carExpenses
       .filter(e => e.date.startsWith(selectedMonth))
       .reduce((s, e) => s + e.amount, 0);
 
-    // Yearly
     const selectedYear = selectedDate.slice(0, 4);
     const yearly = carExpenses
       .filter(e => e.date.startsWith(selectedYear))
       .reduce((s, e) => s + e.amount, 0);
 
-    // Total Overall
     const totalAllTime = carExpenses.reduce((s, e) => s + e.amount, 0);
 
     return {
@@ -184,7 +241,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
         </div>
       </div>
 
-      {/* 1. Overall Summary Cards */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex items-center space-x-4">
           <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0">
@@ -223,7 +280,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
         </div>
       </div>
 
-      {/* 2. Admin Form */}
+      {/* Add Form */}
       {isAdmin && (
         <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
           <h3 className="text-lg font-bold text-primary flex items-center gap-2">
@@ -306,7 +363,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
         </div>
       )}
 
-      {/* 3. Monthly Expense Table */}
+      {/* Table with Action Column */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h4 className="text-sm font-extrabold text-primary uppercase tracking-wider">
@@ -324,6 +381,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
                 <th className="px-6 py-3">Expense Name</th>
                 <th className="px-6 py-3">Car (Click to View Expense)</th>
                 <th className="px-6 py-3">Amount</th>
+                {isAdmin && <th className="px-6 py-3 text-right">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-sm">
@@ -334,11 +392,10 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
                     <td className="px-6 py-3 text-text-dark">{row.date}</td>
                     <td className="px-6 py-3 font-semibold text-slate-500">{row.billNumber}</td>
                     <td className="px-6 py-3 font-bold text-primary">{row.expenseName}</td>
-                    {/* 🟢 Click on Car Number to open Detailed Summary */}
                     <td 
                       className="px-6 py-3 text-emerald-600 font-bold cursor-pointer hover:underline flex items-center gap-1.5"
                       onClick={() => car && setSelectedCarForSummary(car)}
-                      title="Click to view total, daily, weekly, monthly & yearly expenses for this car"
+                      title="Click to view car expenses breakdown"
                     >
                       <Car className="w-4 h-4 text-emerald-500" />
                       {car?.carNumber || '—'}
@@ -346,13 +403,33 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
                     <td className="px-6 py-3 font-bold text-rose-600">
                       {formatCurrency(row.amount)}
                     </td>
+                    {isAdmin && (
+                      <td className="px-6 py-3 text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button
+                            onClick={() => handleEditOpen(row)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit Record"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(row.id)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Delete Record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
 
               {!fetching && filteredExpenses.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-text-secondary text-sm">
+                  <td colSpan={isAdmin ? 6 : 5} className="px-6 py-8 text-center text-text-secondary text-sm">
                     <AlertCircle className="w-5 h-5 mx-auto mb-2 text-slate-400" />
                     No records found for this month.
                   </td>
@@ -363,11 +440,103 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
         </div>
       </div>
 
-      {/* 🟢 4. CAR EXPENSE POPUP / MODAL */}
+      {/* Edit Modal */}
+      {editingExpense && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-150 p-6 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-accent" /> Edit Expense
+              </h3>
+              <button onClick={() => setEditingExpense(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">Expense Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.expenseName}
+                  onChange={(e) => setEditFormData({ ...editFormData, expenseName: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">Bill Number</label>
+                <input
+                  type="text"
+                  value={editFormData.billNumber}
+                  onChange={(e) => setEditFormData({ ...editFormData, billNumber: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">Amount (Rs.) *</label>
+                <input
+                  type="number"
+                  required
+                  value={editFormData.amount}
+                  onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={editFormData.date}
+                  onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">Select Car</label>
+                <select
+                  value={editFormData.carId}
+                  onChange={(e) => setEditFormData({ ...editFormData, carId: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                  {cars.map((car) => (
+                    <option key={car.id} value={car.id}>
+                      {car.carNumber}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingExpense(null)}
+                  className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-primary text-white rounded-xl font-bold text-xs hover:bg-primary-hover"
+                >
+                  {loading ? 'Updating...' : 'Update Expense'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Car Summary Modal */}
       {selectedCarForSummary && carSummaryData && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-150">
-            {/* Modal Header */}
             <div className="bg-primary text-white p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-white/10 rounded-2xl">
@@ -375,7 +544,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
                 </div>
                 <div>
                   <h3 className="text-lg font-black">{selectedCarForSummary.carNumber}</h3>
-                 <p className="text-xs text-white/70">Vehicle Expense Report</p>
+                  <p className="text-xs text-white/70">Vehicle Expense Report</p>
                 </div>
               </div>
               <button
@@ -386,7 +555,6 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
               </button>
             </div>
 
-            {/* Modal Body / Statistics */}
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
@@ -407,13 +575,11 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
                 </div>
               </div>
 
-              {/* Total Expense */}
               <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-center justify-between">
                 <span className="text-sm font-bold text-rose-800">Total Expense (All Time)</span>
                 <span className="text-xl font-black text-rose-600">{formatCurrency(carSummaryData.totalAllTime)}</span>
               </div>
 
-              {/* History Table for this Car */}
               <div>
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                   Expense History ({carSummaryData.records.length})
@@ -452,7 +618,6 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
               </div>
             </div>
 
-            {/* Footer */}
             <div className="bg-slate-50 px-6 py-3 flex justify-end">
               <button
                 onClick={() => setSelectedCarForSummary(null)}

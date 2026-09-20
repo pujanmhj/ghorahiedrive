@@ -1,66 +1,97 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
+import fs from 'fs';
 import path from 'path';
 
-const dataDir = path.join(process.cwd(), 'data');
-const filePath = path.join(dataDir, 'expenses.json');
+const filePath = path.join(process.cwd(), 'data', 'expenses.json');
 
-// Folder ra JSON File na-bhae aafai banaune helper function
-async function ensureFileExists() {
+function readExpenses() {
+  if (!fs.existsSync(filePath)) return [];
   try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-
-  try {
-    await fs.access(filePath);
-  } catch {
-    await fs.writeFile(filePath, '[]', 'utf-8');
+    const fileData = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(fileData);
+  } catch (err) {
+    return [];
   }
 }
 
-// GET: Sabai Expenses tanna lai
+function writeExpenses(data: any[]) {
+  const dirPath = path.dirname(filePath);
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+}
+
 export async function GET() {
-  try {
-    await ensureFileExists();
-    const fileData = await fs.readFile(filePath, 'utf-8');
-    const expenses = JSON.parse(fileData);
-    return NextResponse.json({ expenses });
-  } catch (error) {
-    return NextResponse.json({ expenses: [] });
-  }
+  const expenses = readExpenses();
+  return NextResponse.json({ expenses });
 }
 
-// POST: Naya Expense Save garna lai
 export async function POST(req: Request) {
   try {
-    await ensureFileExists();
     const body = await req.json();
-    const { billNumber, expenseName, amount, date, carId } = body;
-
-    if (!expenseName || !amount || !date) {
-      return NextResponse.json({ error: 'Required fields missing' }, { status: 400 });
-    }
-
-    const fileData = await fs.readFile(filePath, 'utf-8');
-    const expenses = JSON.parse(fileData);
+    const expenses = readExpenses();
 
     const newExpense = {
       id: Date.now().toString(),
-      billNumber: billNumber || 'N/A',
-      expenseName,
-      amount: Number(amount),
-      date,
-      carId,
-      createdAt: new Date().toISOString(),
+      billNumber: body.billNumber || '',
+      expenseName: body.expenseName,
+      amount: Number(body.amount),
+      date: body.date,
+      carId: body.carId,
     };
 
-    expenses.unshift(newExpense);
-    await fs.writeFile(filePath, JSON.stringify(expenses, null, 2), 'utf-8');
+    expenses.push(newExpense);
+    writeExpenses(expenses);
 
     return NextResponse.json({ success: true, expense: newExpense });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to save expense' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create expense' }, { status: 500 });
+  }
+}
+
+// 🟢 Edit Expense
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json();
+    let expenses = readExpenses();
+
+    expenses = expenses.map((item: any) =>
+      item.id === body.id
+        ? {
+            ...item,
+            billNumber: body.billNumber || '',
+            expenseName: body.expenseName,
+            amount: Number(body.amount),
+            date: body.date,
+            carId: body.carId,
+          }
+        : item
+    );
+
+    writeExpenses(expenses);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update expense' }, { status: 500 });
+  }
+}
+
+// 🟢 Delete Expense
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+
+    let expenses = readExpenses();
+    expenses = expenses.filter((item: any) => item.id !== id);
+    writeExpenses(expenses);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete expense' }, { status: 500 });
   }
 }
