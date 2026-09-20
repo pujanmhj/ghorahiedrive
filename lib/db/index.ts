@@ -23,9 +23,13 @@ export {
   createPayment,
   deletePayment,
   updatePayment,
+  listExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
   NotFoundError,
   ConflictError,
   BadRequestError,
   isStoreError,
 } from './store';
-export { UserModel, CarModel, RevenueModel, PaymentModel } from './models';
+export { UserModel, CarModel, RevenueModel, PaymentModel, ExpenseModel } from './models';

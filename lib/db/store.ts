@@ -10,8 +10,7 @@ import type {
   UserRole,
 } from '@/lib/types';
 import { connectMongo } from './mongodb';
-import { CarModel, PaymentModel, RevenueModel, UserModel } from './models';
-
+import { CarModel, ExpenseModel, PaymentModel, RevenueModel, UserModel } from './models';
 
 function seedCars(): FleetCar[] {
   const routes = [
@@ -64,7 +63,7 @@ function seedUsers(): User[] {
       email: 'pujan@dangedrive.com',
       passwordHash: hashPassword('pujan@123'),
       role: 'admin',
-  },
+    },
     {
       id: 'u-share-1',
       name: 'Shareholder One',
@@ -287,19 +286,13 @@ export async function upsertRevenue(input: {
   const car = await CarModel.findById(carId).lean();
   if (!car) throw new NotFoundError('Car not found.');
 
-  // Atomic per-car upsert — never deletes other cars' revenue
   const newId = `rev-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const createdAt = new Date().toISOString();
 
   const doc = await RevenueModel.findOneAndUpdate(
     { carId, date },
     {
-      $set: {
-        amount,
-        route,
-        note,
-      },
-      $setOnInsert: {
+      $set: {         amount,         route,         note,       },$setOnInsert: {
         _id: newId,
         carId,
         date,
@@ -365,7 +358,6 @@ export async function createRevenue(input: {
   return mapRevenue(doc.toObject());
 }
 
-
 export async function updateRevenue(
   id: string,
   input: { amount: number; carId?: string; route?: string; note?: string; date?: string }
@@ -377,11 +369,8 @@ export async function updateRevenue(
   const newCarId = input.carId ?? row.carId;
   const newDate = input.date ?? row.date;
 
-  // Only run the clash check if carId or date is actually changing
   const carIdChanged = input.carId !== undefined && input.carId !== row.carId;
   const dateChanged = input.date !== undefined && input.date !== row.date;
-
-  console.log('[updateRevenue] id:', id, '| row.date:', row.date, '| input.date:', input.date, '| dateChanged:', dateChanged, '| row.carId:', row.carId, '| input.carId:', input.carId, '| carIdChanged:', carIdChanged);
 
   if (carIdChanged || dateChanged) {
     const clash = await RevenueModel.findOne({
@@ -389,7 +378,6 @@ export async function updateRevenue(
       carId: newCarId,
       date: newDate,
     }).lean();
-    console.log('[updateRevenue] clash check => clash found:', !!clash);
     if (clash) {
       throw new ConflictError('This car already has revenue for that date.');
     }
@@ -649,4 +637,106 @@ export async function updatePayment(
 
   await row.save();
   return mapPayment(row.toObject());
+}
+
+// ---------- Expenses (atomic) ----------
+
+function mapExpense(e: {
+  _id: unknown;
+  billNumber?: string;
+  expenseName: string;
+  amount: number;
+  date: string;
+  carId?: string;
+  createdAt: string;
+}) {
+  return {
+    id: String(e._id),
+    billNumber: e.billNumber ?? '',
+    expenseName: e.expenseName,
+    amount: e.amount,
+    date: e.date,
+    carId: e.carId ?? '',
+    createdAt: e.createdAt,
+  };
+}
+
+export async function listExpenses() {
+  await connectMongo();
+  const rows = await ExpenseModel.find().sort({ date: -1, createdAt: -1 }).lean();
+  return rows.map(mapExpense);
+}
+
+export async function createExpense(input: {
+  billNumber?: string;
+  expenseName: string;
+  amount: number;
+  date: string;
+  carId?: string;
+}) {
+  await connectMongo();
+
+  const expenseName = String(input.expenseName || '').trim();
+  const date = String(input.date || '').trim();
+  const amount = Number(input.amount);
+  const billNumber = input.billNumber ? String(input.billNumber).trim() : '';
+  const carId = input.carId ? String(input.carId).trim() : '';
+
+  if (!expenseName || !date || !Number.isFinite(amount) || amount < 0) {
+    throw new BadRequestError('Expense name, date, and a valid non-negative amount are required.');
+  }
+
+  const newId = `exp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const createdAt = new Date().toISOString();
+
+  const doc = await ExpenseModel.create({
+    _id: newId,
+    billNumber,
+    expenseName,
+    amount,
+    date,
+    carId,
+    createdAt,
+  });
+
+  return mapExpense(doc.toObject());
+}
+
+export async function updateExpense(
+  id: string,
+  input: {
+    billNumber?: string;
+    expenseName?: string;
+    amount?: number;
+    date?: string;
+    carId?: string;
+  }
+) {
+  await connectMongo();
+  const row = await ExpenseModel.findById(id);
+  if (!row) throw new NotFoundError('Expense record not found.');
+
+  if (input.billNumber !== undefined) row.billNumber = String(input.billNumber).trim();
+  if (input.expenseName !== undefined) {
+    const name = String(input.expenseName).trim();
+    if (!name) throw new BadRequestError('Expense name cannot be empty.');
+    row.expenseName = name;
+  }
+  if (input.amount !== undefined) {
+    if (!Number.isFinite(input.amount) || input.amount < 0) {
+      throw new BadRequestError('Amount must be a non-negative number.');
+    }
+    row.amount = input.amount;
+  }
+  if (input.date !== undefined) row.date = String(input.date).trim();
+  if (input.carId !== undefined) row.carId = String(input.carId).trim();
+
+  await row.save();
+  return mapExpense(row.toObject());
+}
+
+export async function deleteExpense(id: string): Promise<void> {
+  await connectMongo();
+  const result = await ExpenseModel.deleteOne({ _id: id });
+  if (result.deletedCount === 0) throw new NotFoundError('Expense record not found.');
 }

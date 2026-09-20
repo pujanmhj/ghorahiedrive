@@ -7,7 +7,27 @@ export interface User {
   passwordHash: string;
   role: UserRole;
 }
+// Inside @/lib/types.ts
 
+export interface ExpenseRecord {
+  id: string;
+  billNumber?: string;
+  expenseName: string;
+  amount: number;
+  date: string;
+  carId: string;
+}
+
+
+
+export interface ExpenseRecord {
+  id: string;
+  billNumber?: string;
+  expenseName: string;
+  amount: number;
+  date: string;
+  carId: string;
+}
 export interface SessionUser {
   id: string;
   name: string;
@@ -54,8 +74,20 @@ export interface Payment {
   createdAt: string;
 }
 
+export interface Expense {
+  id: string;
+  billNumber?: string;
+  expenseName: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  carId?: string;
+  createdAt: string;
+}
+
 export interface AppDatabase {
   users: User[];
   cars: FleetCar[];
   revenues: DailyRevenue[];
+  payments?: Payment[];
+  expenses?: Expense[];
 }

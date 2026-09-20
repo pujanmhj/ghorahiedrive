@@ -36,6 +36,31 @@ const RevenueSchema = new Schema(
   { versionKey: false }
 );
 
+const PaymentSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    carId: { type: String, required: true, index: true },
+    date: { type: String, required: true, index: true },
+    amount: { type: Number, required: true, min: 0 },
+    method: { type: String, enum: ['cash', 'qr_banking'], required: true },
+    note: { type: String },
+    createdAt: { type: String, required: true },
+  },
+  { versionKey: false }
+);
+
+const ExpenseSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    billNumber: { type: String, default: '' },
+    expenseName: { type: String, required: true },
+    amount: { type: Number, required: true, min: 0 },
+    date: { type: String, required: true, index: true },
+    carId: { type: String, default: '', index: true },
+    createdAt: { type: String, required: true },
+  },
+  { versionKey: false }
+);
 
 export type UserDoc = {
   _id: string;
@@ -63,19 +88,6 @@ export type RevenueDoc = {
   createdAt: string;
 };
 
-const PaymentSchema = new Schema(
-  {
-    _id: { type: String, required: true },
-    carId: { type: String, required: true, index: true },
-    date: { type: String, required: true, index: true },
-    amount: { type: Number, required: true, min: 0 },
-    method: { type: String, enum: ['cash', 'qr_banking'], required: true },
-    note: { type: String },
-    createdAt: { type: String, required: true },
-  },
-  { versionKey: false }
-);
-
 export type PaymentDoc = {
   _id: string;
   carId: string;
@@ -86,7 +98,18 @@ export type PaymentDoc = {
   createdAt: string;
 };
 
+export type ExpenseDoc = {
+  _id: string;
+  billNumber?: string;
+  expenseName: string;
+  amount: number;
+  date: string;
+  carId?: string;
+  createdAt: string;
+};
+
 export const UserModel = models.User || model('User', UserSchema);
 export const CarModel = models.Car || model('Car', CarSchema);
 export const RevenueModel = models.Revenue || model('Revenue', RevenueSchema);
 export const PaymentModel = models.Payment || model('Payment', PaymentSchema);
+export const ExpenseModel = models.Expense || model('Expense', ExpenseSchema);

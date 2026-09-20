@@ -12,9 +12,9 @@ import {
   PaymentPanel,
   ExpensesPanel,
 } from '@/components/portal';
-import type { DailyRevenue, FleetCar, SessionUser } from '@/lib/types';
+import type { DailyRevenue, ExpenseRecord, FleetCar, SessionUser } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { Car, Coins, CalendarRange, Eye, ShieldCheck, CreditCard } from 'lucide-react';
+import { Car, Coins, CalendarRange, Eye, ShieldCheck, CreditCard, Receipt } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -23,18 +23,20 @@ export default function DashboardPage() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [cars, setCars] = useState<FleetCar[]>([]);
   const [revenues, setRevenues] = useState<DailyRevenue[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [monthTotal, setMonthTotal] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const loadData = useCallback(async () => {
-    const [carsRes, revRes, monthRes] = await Promise.all([
+    const [carsRes, revRes, monthRes, expRes] = await Promise.all([
       fetch('/api/cars', { cache: 'no-store' }),
       fetch('/api/revenue', { cache: 'no-store' }),
       fetch(
         `/api/reports/monthly?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}`,
         { cache: 'no-store' }
       ),
+      fetch('/api/expenses', { cache: 'no-store' }),
     ]);
 
     if (carsRes.ok) {
@@ -48,6 +50,10 @@ export default function DashboardPage() {
     if (monthRes.ok) {
       const data = await monthRes.json();
       setMonthTotal(data.grandTotal || 0);
+    }
+    if (expRes.ok) {
+      const data = await expRes.json();
+      setExpenses(data.expenses || []);
     }
   }, []);
 
@@ -133,7 +139,7 @@ export default function DashboardPage() {
                   </h2>
                   <p className="text-xs text-slate-300 mt-1 leading-relaxed">
                     {isAdmin
-                      ? 'Fully dynamic portal: add cars, daily revenue, and shareholder logins. Website fleet count updates automatically.'
+                      ? 'Fully dynamic portal: add cars, daily revenue, expenses, and shareholder logins.'
                       : 'Live view-only access. Numbers refresh automatically when the admin updates data.'}
                   </p>
                 </div>
@@ -193,14 +199,14 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <button
                   onClick={() => setActiveTab('cars')}
                   className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-left hover:border-primary/30 transition-colors"
                 >
                   <p className="text-sm font-bold text-primary">Cars & Routes</p>
                   <p className="text-xs text-text-secondary mt-1">
-                    Plate number and from → to for each gaadi
+                    Plate number and routes
                   </p>
                 </button>
                 <button
@@ -209,7 +215,7 @@ export default function DashboardPage() {
                 >
                   <p className="text-sm font-bold text-primary">Daily Revenue</p>
                   <p className="text-xs text-text-secondary mt-1">
-                    {isAdmin ? 'Add or edit daily collection amounts' : 'View daily collection amounts'}
+                    {isAdmin ? 'Add or edit daily revenue' : 'View daily collections'}
                   </p>
                 </button>
                 <button
@@ -218,7 +224,7 @@ export default function DashboardPage() {
                 >
                   <p className="text-sm font-bold text-primary">Monthly Totals</p>
                   <p className="text-xs text-text-secondary mt-1">
-                    Month-end total for each car
+                    Month-end totals per car
                   </p>
                 </button>
                 <button
@@ -230,7 +236,19 @@ export default function DashboardPage() {
                     Payment
                   </p>
                   <p className="text-xs text-text-secondary mt-1">
-                    Track Cash, QR & Banking payments
+                    Track Cash & Banking
+                  </p>
+                </button>
+                <button
+                  onClick={() => setActiveTab('expenses')}
+                  className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-left hover:border-primary/30 transition-colors"
+                >
+                  <p className="text-sm font-bold text-primary flex items-center gap-1.5">
+                    <Receipt className="w-4 h-4 text-accent" />
+                    Expenses
+                  </p>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Log fuel, maintenance & bills
                   </p>
                 </button>
               </div>
@@ -300,8 +318,14 @@ export default function DashboardPage() {
           {activeTab === 'payment' && (
             <PaymentPanel user={user} cars={cars} />
           )}
+
           {activeTab === 'expenses' && (
-            <ExpensesPanel user={user} cars={cars} onChanged={reloadAfterEdit} />
+            <ExpensesPanel 
+              user={user} 
+              cars={cars} 
+              expenses={expenses} 
+              onChanged={reloadAfterEdit} 
+            />
           )}
         </main>
       </div>

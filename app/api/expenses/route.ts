@@ -1,113 +1,107 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { AuthError, getSessionUser, requireSession } from '@/lib/auth';
+import {
+  listExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  isStoreError,
+} from '@/lib/db';
 
-// JSON file path (लोकल र server/deployment को लागि storage path)
-const dataFilePath = path.join(process.cwd(), 'data', 'expenses.json');
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-// Helper to read expenses
-function getExpensesFromFile() {
-  try {
-    if (!fs.existsSync(dataFilePath)) {
-      return [];
-    }
-    const fileData = fs.readFileSync(dataFilePath, 'utf8');
-    return JSON.parse(fileData || '[]');
-  } catch (error) {
-    console.error('Error reading expenses file:', error);
-    return [];
-  }
-}
-
-// Helper to save expenses
-function saveExpensesToFile(expenses: any[]) {
-  try {
-    const dirPath = path.dirname(dataFilePath);
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-    fs.writeFileSync(dataFilePath, JSON.stringify(expenses, null, 2), 'utf8');
-  } catch (error) {
-    console.error('Error writing expenses file:', error);
-  }
-}
-
-// 1. GET: सबै Expense हरू ल्याउने
 export async function GET() {
-  const expenses = getExpensesFromFile();
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const expenses = await listExpenses();
   return NextResponse.json({ expenses });
 }
 
-// 2. POST: नयाँ Expense थप्ने
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
-    const expenses = getExpensesFromFile();
+    await requireSession('admin');
+    const body = await request.json();
 
-    const newExpense = {
-      id: Date.now().toString(),
-      billNumber: body.billNumber || '',
-      expenseName: body.expenseName,
-      amount: Number(body.amount),
-      date: body.date,
-      carId: body.carId || '',
-    };
+    const expenseName = String(body.expenseName || '').trim();
+    const amount = Number(body.amount);
+    const date = String(body.date || '').trim();
+    const billNumber = body.billNumber ? String(body.billNumber).trim() : '';
+    const carId = body.carId ? String(body.carId).trim() : '';
 
-    expenses.unshift(newExpense);
-    saveExpensesToFile(expenses);
-
-    return NextResponse.json({ success: true, expenses });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to create expense' }, { status: 500 });
-  }
-}
-
-// 3. PUT: Expense EDIT / UPDATE गर्ने
-export async function PUT(req: Request) {
-  try {
-    const body = await req.json();
-    let expenses = getExpensesFromFile();
-
-    const index = expenses.findIndex((item: any) => String(item.id) === String(body.id));
-
-    if (index === -1) {
-      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
+    if (!expenseName || isNaN(amount) || !date) {
+      return NextResponse.json(
+        { error: 'Expense name, valid amount, and date are required.' },
+        { status: 400 }
+      );
     }
 
-    expenses[index] = {
-      ...expenses[index],
-      billNumber: body.billNumber,
-      expenseName: body.expenseName,
-      amount: Number(body.amount),
-      date: body.date,
-      carId: body.carId,
-    };
+    const expense = await createExpense({
+      billNumber,
+      expenseName,
+      amount,
+      date,
+      carId,
+    });
 
-    saveExpensesToFile(expenses);
-
-    return NextResponse.json({ success: true, expenses });
+    return NextResponse.json({ expense }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to update expense' }, { status: 500 });
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    if (isStoreError && isStoreError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    console.error('[expenses POST]', error);
+    return NextResponse.json({ error: 'Could not add expense.' }, { status: 500 });
   }
 }
 
-// 4. DELETE: Expense DELETE गर्ने
-export async function DELETE(req: Request) {
+export async function PUT(request: Request) {
   try {
-    const { searchParams } = new URL(req.url);
+    await requireSession('admin');
+    const body = await request.json();
+    const { id, ...data } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Expense ID is required.' }, { status: 400 });
+    }
+
+    const updated = await updateExpense(id, data);
+    if (!updated) {
+      return NextResponse.json({ error: 'Expense not found.' }, { status: 404 });
+    }
+
+    return NextResponse.json({ expense: updated });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    console.error('[expenses PUT]', error);
+    return NextResponse.json({ error: 'Could not update expense.' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    await requireSession('admin');
+    const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Expense ID is required.' }, { status: 400 });
     }
 
-    let expenses = getExpensesFromFile();
-    expenses = expenses.filter((item: any) => String(item.id) !== String(id));
-
-    saveExpensesToFile(expenses);
-
-    return NextResponse.json({ success: true, expenses });
+    await deleteExpense(id);
+    return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete expense' }, { status: 500 });
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    console.error('[expenses DELETE]', error);
+    return NextResponse.json({ error: 'Could not delete expense.' }, { status: 500 });
   }
 }
