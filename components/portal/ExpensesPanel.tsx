@@ -375,7 +375,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
                 </div>
                 <div>
                   <h3 className="text-lg font-black">{selectedCarForSummary.carNumber}</h3>
-                  <p className="text-xs text-white/70">{selectedCarForSummary.model || 'Vehicle Expense Report'}</p>
+                 <p className="text-xs text-white/70">Vehicle Expense Report</p>
                 </div>
               </div>
               <button
