@@ -31,6 +31,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
   const [selectedCarForSummary, setSelectedCarForSummary] = useState<FleetCar | null>(null);
   const [editingExpense, setEditingExpense] = useState<ExpenseRecord | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     billNumber: '',
@@ -48,8 +49,6 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
     date: '',
     carId: '',
   });
-
-  const [loading, setLoading] = useState(false);
 
   const fetchExpenses = useCallback(async () => {
     try {
@@ -82,6 +81,12 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
       });
 
       if (res.ok) {
+        const data = await res.json();
+        if (data.expenses) {
+          setExpenses(data.expenses);
+        } else {
+          await fetchExpenses();
+        }
         setFormData({
           billNumber: '',
           expenseName: '',
@@ -89,7 +94,6 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
           date: new Date().toISOString().slice(0, 10),
           carId: cars[0]?.id || '',
         });
-        await fetchExpenses();
         if (onChanged) onChanged();
       }
     } catch (err) {
@@ -99,7 +103,6 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
     }
   };
 
-  // 🟢 Edit handler
   const handleEditOpen = (item: ExpenseRecord) => {
     setEditingExpense(item);
     setEditFormData({
@@ -115,6 +118,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
     try {
       const res = await fetch('/api/expenses', {
         method: 'PUT',
@@ -123,20 +127,24 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
       });
 
       if (res.ok) {
+        const data = await res.json();
+        if (data.expenses) {
+          setExpenses(data.expenses);
+        } else {
+          await fetchExpenses();
+        }
         setEditingExpense(null);
-        await fetchExpenses();
         if (onChanged) onChanged();
       }
     } catch (err) {
-      console.error('Failed to update expense', err);
+      console.error('Update failed', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🟢 Delete handler
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this expense record?')) return;
+    if (!confirm('के तपाईँ यो Expense हट्न चाहनुहुन्छ?')) return;
 
     try {
       const res = await fetch(`/api/expenses?id=${id}`, {
@@ -144,15 +152,19 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
       });
 
       if (res.ok) {
-        await fetchExpenses();
+        const data = await res.json();
+        if (data.expenses) {
+          setExpenses(data.expenses);
+        } else {
+          await fetchExpenses();
+        }
         if (onChanged) onChanged();
       }
     } catch (err) {
-      console.error('Failed to delete expense', err);
+      console.error('Delete failed', err);
     }
   };
 
-  // Calculations
   const dailyTotal = useMemo(() => {
     return expenses
       .filter((item) => item.date === selectedDate)
@@ -280,7 +292,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
         </div>
       </div>
 
-      {/* Add Form */}
+      {/* Form */}
       {isAdmin && (
         <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
           <h3 className="text-lg font-bold text-primary flex items-center gap-2">
@@ -363,7 +375,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
         </div>
       )}
 
-      {/* Table with Action Column */}
+      {/* Table */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h4 className="text-sm font-extrabold text-primary uppercase tracking-wider">
@@ -395,7 +407,6 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
                     <td 
                       className="px-6 py-3 text-emerald-600 font-bold cursor-pointer hover:underline flex items-center gap-1.5"
                       onClick={() => car && setSelectedCarForSummary(car)}
-                      title="Click to view car expenses breakdown"
                     >
                       <Car className="w-4 h-4 text-emerald-500" />
                       {car?.carNumber || '—'}
@@ -409,14 +420,12 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
                           <button
                             onClick={() => handleEditOpen(row)}
                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit Record"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(row.id)}
                             className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Delete Record"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -443,7 +452,7 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
       {/* Edit Modal */}
       {editingExpense && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-150 p-6 space-y-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-xl overflow-hidden p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-lg font-bold text-primary flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-accent" /> Edit Expense
@@ -533,10 +542,10 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
         </div>
       )}
 
-      {/* Car Summary Modal */}
+      {/* Car Detail Modal */}
       {selectedCarForSummary && carSummaryData && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-150">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden">
             <div className="bg-primary text-white p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-white/10 rounded-2xl">
@@ -605,13 +614,6 @@ export default function ExpensesPanel({ user, cars, onChanged }: ExpensesPanelPr
                           </td>
                         </tr>
                       ))}
-                      {carSummaryData.records.length === 0 && (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-4 text-center text-slate-400">
-                            No expense records for this car.
-                          </td>
-                        </tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
