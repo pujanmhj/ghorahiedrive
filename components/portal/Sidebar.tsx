@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutDashboard, Car, Coins, CalendarRange, LogOut, X, Users, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Car, Coins, CalendarRange, LogOut, X, Users, CreditCard, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import type { SessionUser } from '@/lib/types';
 
@@ -27,6 +27,7 @@ export default function Sidebar({
     { id: 'revenue', label: 'Daily Revenue', icon: <Coins className="w-5 h-5" /> },
     { id: 'monthly', label: 'Monthly Totals', icon: <CalendarRange className="w-5 h-5" /> },
     { id: 'payment', label: 'Payment', icon: <CreditCard className="w-5 h-5" /> },
+    { id: 'expenses', label: 'Expenses', icon: <Receipt className="w-5 h-5" /> },
     ...(user.role === 'admin'
       ? [{ id: 'users', label: 'Users', icon: <Users className="w-5 h-5" /> }]
       : []),

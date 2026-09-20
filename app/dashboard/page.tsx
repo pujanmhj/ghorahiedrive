@@ -10,6 +10,7 @@ import {
   MonthlyReport,
   ShareholdersPanel,
   PaymentPanel,
+  ExpensesPanel,
 } from '@/components/portal';
 import type { DailyRevenue, FleetCar, SessionUser } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
@@ -298,6 +299,9 @@ export default function DashboardPage() {
 
           {activeTab === 'payment' && (
             <PaymentPanel user={user} cars={cars} />
+          )}
+          {activeTab === 'expenses' && (
+            <ExpensesPanel user={user} cars={cars} onChanged={reloadAfterEdit} />
           )}
         </main>
       </div>
